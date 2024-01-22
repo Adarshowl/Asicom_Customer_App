@@ -1,0 +1,294 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import {
+  FlatList,
+  I18nManager,
+  Image,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import {images, SIZES, STRING} from '../../../constants';
+import {COLORS} from '../../../constants/Colors';
+import {FONTS} from '../../../constants/themes';
+import GlobalStyle from '../../../styles/GlobalStyle';
+import themeContext from '../../../constants/themeContext';
+import {ShowConsoleLogMessage} from '../../../utils/Utility';
+
+const OnBoarding = ({navigation}) => {
+  const theme = useContext(themeContext);
+  useEffect(() => {
+    AsyncStorage.setItem(STRING.onBoardComplete, 'true');
+    AsyncStorage.setItem(STRING.isFirstTime, 'true');
+  }, []);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const flatListRef = useRef();
+
+  ShowConsoleLogMessage('active index -> ' + activeIndex);
+  const [data, setData] = useState([
+    {
+      image: images.intro_a,
+      selected: true,
+      heading: STRING.discover,
+      desc: STRING.discover_text,
+    },
+    {
+      image: images.intro_b,
+      selected: false,
+      heading: STRING.shop,
+      desc: STRING.shop_text,
+    },
+    {
+      image: images.intro_c,
+      selected: false,
+      heading: STRING.offers,
+      desc: STRING.offers_text,
+    },
+  ]);
+
+  const renderItems = ({item}) => {
+    return (
+      <View
+        style={[
+          styles.itemBg,
+          {
+            backgroundColor: theme?.colors?.bg_color_onBoard,
+          },
+        ]}>
+        <Image source={item.image} style={styles.image} />
+        <Text
+          style={[
+            styles.heading,
+            {
+              color: theme?.colors?.textColor,
+            },
+          ]}>
+          {item?.heading}
+        </Text>
+        <Text
+          style={[
+            styles.desc,
+            {
+              color: theme?.colors?.textColor,
+            },
+          ]}>
+          {item?.desc}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderDotItems = ({item, index}) => {
+    return (
+      <View
+        style={[
+          styles.dot,
+          {
+            backgroundColor: item?.selected
+              ? theme?.colors?.colorPrimary
+              : theme?.colors?.toolbar_icon_bg,
+          },
+        ]}
+      />
+    );
+  };
+
+  const onScroll = useCallback(event => {
+    if (I18nManager.isRTL) {
+      const slideSize = event.nativeEvent.layoutMeasurement.width;
+      const index = event.nativeEvent.contentOffset.x / slideSize;
+      const roundIndex = Math.round(index);
+      console.log('index:', index);
+      console.log('roundIndex:', roundIndex);
+      setActiveIndex(roundIndex);
+      activateColor(roundIndex);
+    } else {
+      const slideSize = event.nativeEvent.layoutMeasurement.width;
+      const index = event.nativeEvent.contentOffset.x / slideSize;
+      const roundIndex = Math.round(index);
+      // console.log('roundIndex:', roundIndex);
+      setActiveIndex(roundIndex);
+      activateColor(roundIndex);
+    }
+  }, []);
+
+  const handleSkipBtnClick = () => {
+    navigation.navigate('Login');
+    // navigation.replace('MainContainer');
+  };
+
+  const handleNextBtnClick = () => {
+    let active = activeIndex + 1;
+    activateColor(active);
+    if (active < data.length) {
+      flatListRef.current.scrollToIndex({
+        animated: true,
+        index: active,
+      });
+      setActiveIndex(activeIndex + 1);
+    } else {
+      navigation.navigate('Login');
+      // navigation.replace('MainContainer');
+    }
+  };
+
+  const activateColor = index => {
+    let arr = data.map((item, idx) => {
+      let temp = Object.assign({}, item);
+      if (index == idx) {
+        if (index == 0) {
+          temp.selected = true;
+        } else {
+          temp.selected = !temp?.selected;
+        }
+      } else {
+        temp.selected = false;
+      }
+      return temp;
+    });
+    setData(arr);
+  };
+
+  return (
+    <View
+      style={[
+        GlobalStyle.mainContainerBgColor,
+        {
+          backgroundColor: theme.colors.bg_color,
+        },
+      ]}>
+      <FlatList
+        data={data}
+        ref={flatListRef}
+        renderItem={renderItems}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        decelerationRate={'normal'}
+        initialScrollIndex={activeIndex}
+        onScrollToIndexFailed={info => {
+          const wait = new Promise(resolve => setTimeout(resolve, 500));
+          wait.then(() => {
+            flatListRef.current?.scrollToIndex({
+              index: info.index,
+              animated: true,
+            });
+          });
+        }}
+        onScroll={onScroll}
+      />
+      <View
+        style={[
+          GlobalStyle.OnBoardingFooter,
+          {
+            backgroundColor: theme?.colors?.bg_color_onBoard,
+          },
+        ]}>
+        <Text
+          style={[
+            FONTS.body4,
+            GlobalStyle.skipNextText,
+            {
+              color: theme.colors?.colorPrimary,
+            },
+          ]}
+          onPress={handleSkipBtnClick}>
+          {STRING.skip}
+        </Text>
+        <View style={GlobalStyle.OnBoardingCenter}>
+          <FlatList
+            data={data}
+            renderItem={renderDotItems}
+            horizontal
+            inverted={I18nManager.isRTL ? true : false}
+          />
+        </View>
+        {I18nManager.isRTL ? (
+          <Text
+            style={[
+              FONTS.body4,
+              GlobalStyle.skipNextText,
+              {
+                color: theme.colors?.colorPrimary,
+              },
+            ]}
+            onPress={() => {
+              let active = activeIndex - 1;
+              activateColor(active);
+              ShowConsoleLogMessage('active => ' + active);
+              if (active < data.length) {
+                flatListRef.current.scrollToIndex({
+                  animated: true,
+                  index: active,
+                });
+                setActiveIndex(activeIndex - 1);
+              } else {
+                navigation.navigate('Login');
+                // navigation.replace('MainContainer');
+              }
+            }}>
+            {activeIndex == 2 ? STRING.next : STRING.get_started}d
+          </Text>
+        ) : (
+          <Text
+            style={[
+              FONTS.body4,
+              GlobalStyle.skipNextText,
+              {
+                color: theme.colors?.colorPrimary,
+              },
+            ]}
+            onPress={handleNextBtnClick}>
+            {activeIndex == 2 ? STRING.get_started : STRING.next}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+};
+
+export default OnBoarding;
+
+const styles = StyleSheet.create({
+  image: {
+    width: SIZES.width - 30,
+    height: '80%',
+    resizeMode: 'contain',
+    paddingHorizontal: 10,
+    alignSelf: 'center',
+  },
+  dot: {
+    width: 9,
+    height: 9,
+    margin: 10,
+    borderRadius: 15,
+  },
+  heading: {
+    fontFamily: 'OpenSans-SemiBold',
+    textAlign: 'center',
+    fontSize: 22,
+    color: COLORS.black,
+    marginTop: 5,
+  },
+  desc: {
+    fontFamily: 'OpenSans-Regular',
+    textAlign: 'center',
+    fontSize: 17,
+    color: COLORS.black,
+    marginTop: 10,
+  },
+  itemBg: {
+    marginBottom: 5,
+    width: SIZES.width,
+    alignItems: 'center',
+  },
+});
+
+
+export const addStripeCustomerUrl = `${apiProtocol}${rootApiUrl}${rootApiVersion}stripe/add_stripe_customers`;
